@@ -9,9 +9,14 @@ import type {
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (init?.body) headers["content-type"] = "application/json";
   const response = await fetch(`${BASE}${path}`, {
-    headers: { "content-type": "application/json" },
     ...init,
+    headers: {
+      ...headers,
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -27,6 +32,8 @@ export const api = {
     request<AlertDTO[]>(`/api/alerts${status ? `?status=${status}` : ""}`),
   scans: (deviceId: string, limit = 10) =>
     request<ScanDTO[]>(`/api/devices/${deviceId}/scans?limit=${limit}`),
+  frameUrl: (deviceId: string) =>
+    `${BASE}/api/devices/${encodeURIComponent(deviceId)}/frame`,
   usage: () => request<UsageDTO>("/api/usage"),
   updateSettings: (deviceId: string, body: UpdateDeviceSettingsInput) =>
     request<DeviceDTO>(`/api/devices/${deviceId}/settings`, {

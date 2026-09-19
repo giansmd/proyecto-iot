@@ -5,11 +5,13 @@ import type {
   RequestAnalysisNowUseCase,
   UpdateDeviceSettingsUseCase,
 } from "../../../application/use-cases/device-settings.js";
+import type { GetLatestFrameUseCase } from "../../../application/use-cases/frame.js";
 
 export interface DevicesContext {
   listDevices: ListDevicesUseCase;
   updateDeviceSettings: UpdateDeviceSettingsUseCase;
   requestAnalysisNow: RequestAnalysisNowUseCase;
+  getFrame: GetLatestFrameUseCase;
 }
 
 export function registerDevicesRoutes(
@@ -35,5 +37,15 @@ export function registerDevicesRoutes(
     const { id } = request.params as { id: string };
     await ctx.requestAnalysisNow.execute(id);
     return reply.code(202).send({ queued: true, deviceId: id });
+  });
+
+  app.get("/api/devices/:id/frame", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const frame = await ctx.getFrame.execute(id);
+    if (!frame) return reply.code(404).send({ error: "frame-not-found" });
+    return reply
+      .header("content-type", "image/jpeg")
+      .header("cache-control", "no-store")
+      .send(frame.data);
   });
 }

@@ -5,8 +5,11 @@ import {
   type DeviceDTO,
   type ScanDTO,
 } from "@iot/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../lib/api";
 import { formatRelative } from "../lib/format";
+
+const FRAME_REFRESH_MS = 5000;
 
 interface DeviceCardProps {
   device: DeviceDTO;
@@ -40,10 +43,20 @@ export function DeviceCard({
   const [customValue, setCustomValue] = useState(
     String(device.analysisIntervalMinutes),
   );
+  const [frameVersion, setFrameVersion] = useState(() => Date.now());
+  const [frameError, setFrameError] = useState(false);
   const status = statusOf(device, scan);
   const isPreset = (ANALYSIS_INTERVAL_PRESETS as readonly number[]).includes(
     device.analysisIntervalMinutes,
   );
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setFrameVersion(Date.now()),
+      FRAME_REFRESH_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
 
   const applyCustom = () => {
     const value = Number(customValue);
@@ -72,6 +85,23 @@ export function DeviceCard({
           {status.label}
         </span>
       </header>
+
+      <div className="relative h-40 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+        <img
+          src={`${api.frameUrl(device.id)}?t=${frameVersion}`}
+          alt={`Vista del anaquel ${device.name}`}
+          className={`h-full w-full object-cover transition-opacity ${
+            frameError ? "opacity-0" : "opacity-100"
+          }`}
+          onError={() => setFrameError(true)}
+          onLoad={() => setFrameError(false)}
+        />
+        {frameError ? (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+            Sin imagen del dispositivo
+          </div>
+        ) : null}
+      </div>
 
       <dl className="grid grid-cols-2 gap-2 text-xs text-slate-300">
         <div>

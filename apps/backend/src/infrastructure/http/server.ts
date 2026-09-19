@@ -10,6 +10,7 @@ import type {
   UpdateDeviceSettingsUseCase,
 } from "../../application/use-cases/device-settings.js";
 import type { IngestImageUseCase } from "../../application/use-cases/ingest-image.js";
+import type { GetLatestFrameUseCase } from "../../application/use-cases/frame.js";
 import type { GetUsageUseCase } from "../../application/use-cases/usage.js";
 import { EVENTS_CHANNEL } from "../realtime/event-publisher.js";
 import type { Redis } from "../redis/redis.js";
@@ -35,6 +36,7 @@ export interface HttpDeps {
     listAlerts: ListAlertsUseCase;
     alertAction: AlertActionUseCase;
     listScans: ListScansUseCase;
+    getFrame: GetLatestFrameUseCase;
     getUsage: GetUsageUseCase;
   };
 }

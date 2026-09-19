@@ -144,6 +144,7 @@ Ajusta en el sketch `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` y `DEVICE_KEY`.
 | `GET` | `/api/devices` | Dispositivos y su estado |
 | `PATCH` | `/api/devices/:id/settings` | Cambia intervalo (`analysisIntervalMinutes`) / nombre / ubicación / activo |
 | `POST` | `/api/devices/:id/analyze-now` | Fuerza un análisis |
+| `GET` | `/api/devices/:id/frame` | Última imagen JPEG recibida (se refresca cada 5 s en el dashboard) |
 | `GET` | `/api/devices/:id/scans?limit=` | Historial de análisis |
 | `GET` | `/api/alerts` | Alertas (`?status=open|ack|resolved`) |
 | `POST` | `/api/alerts/:id/ack` | Acusar alerta |

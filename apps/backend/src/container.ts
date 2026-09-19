@@ -10,6 +10,7 @@ import {
 } from "./application/use-cases/device-settings.js";
 import { AnalyzeDeviceUseCase } from "./application/use-cases/analyze-device.js";
 import { IngestImageUseCase } from "./application/use-cases/ingest-image.js";
+import { GetLatestFrameUseCase } from "./application/use-cases/frame.js";
 import { GetUsageUseCase } from "./application/use-cases/usage.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { buildServer } from "./infrastructure/http/server.js";
@@ -109,6 +110,7 @@ export async function createContainer(): Promise<Container> {
     listAlerts: new ListAlertsUseCase(alerts),
     alertAction: new AlertActionUseCase(alerts, publisher),
     listScans: new ListScansUseCase(scans),
+    getFrame: new GetLatestFrameUseCase(frames),
     getUsage: new GetUsageUseCase(usage, config.OPENAI_BUDGET_USD),
   };
 
