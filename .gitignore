@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+.insforge/
+.DS_Store
+Thumbs.db
+
+apps/backend/drizzle/meta/_journal.json.bak

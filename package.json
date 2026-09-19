@@ -1,0 +1,16 @@
+{
+  "name": "proyecto-iot",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "dev": "pnpm --filter @iot/shared build && pnpm -r --parallel run dev",
+    "db:generate": "pnpm --filter @iot/backend run db:generate",
+    "db:migrate": "pnpm --filter @iot/backend run db:migrate"
+  }
+}

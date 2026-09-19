@@ -1,0 +1,94 @@
+name: proyecto-iot
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-iot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot}
+      POSTGRES_DB: ${POSTGRES_DB:-iot}
+    volumes:
+      # En PostgreSQL 18 la imagen oficial usa PGDATA=/var/lib/postgresql/18/docker
+      # y declara VOLUME en /var/lib/postgresql.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-iot} -d ${POSTGRES_DB:-iot}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://${POSTGRES_USER:-iot}:${POSTGRES_PASSWORD:-iot}@postgres:5432/${POSTGRES_DB:-iot}
+      REDIS_URL: redis://redis:6379
+      DEVICE_KEYS: ${DEVICE_KEYS:-esp32-anaquel-1:cambia-esta-clave}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_IMAGE_DETAIL: ${OPENAI_IMAGE_DETAIL:-low}
+      OPENAI_MAX_OUTPUT_TOKENS: ${OPENAI_MAX_OUTPUT_TOKENS:-400}
+      OPENAI_TIMEOUT_MS: ${OPENAI_TIMEOUT_MS:-20000}
+      OPENAI_BUDGET_USD: ${OPENAI_BUDGET_USD:-1}
+      OPENAI_INPUT_PRICE_PER_1M: ${OPENAI_INPUT_PRICE_PER_1M:-0.15}
+      OPENAI_OUTPUT_PRICE_PER_1M: ${OPENAI_OUTPUT_PRICE_PER_1M:-0.60}
+      DEFAULT_ANALYSIS_INTERVAL_MINUTES: ${DEFAULT_ANALYSIS_INTERVAL_MINUTES:-30}
+      FRAME_STALE_FACTOR: ${FRAME_STALE_FACTOR:-2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+    ports:
+      # Expuesto para que el ESP32 pueda hacer POST directo (HTTP).
+      - "${BACKEND_PORT:-5000}:5000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
