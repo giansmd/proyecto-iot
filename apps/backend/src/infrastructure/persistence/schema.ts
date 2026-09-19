@@ -1,4 +1,4 @@
-import type { AlertStatus, EmptyArea } from "@iot/shared";
+import type { AlertStatus, EmptyArea, TargetType } from "@iot/shared";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -18,6 +18,11 @@ export const devices = pgTable("devices", {
   analysisIntervalMinutes: integer("analysis_interval_minutes")
     .notNull()
     .default(30),
+  captureIntervalSeconds: integer("capture_interval_seconds")
+    .notNull()
+    .default(60),
+  targetType: text("target_type").$type<TargetType>().notNull().default("anaquel"),
+  targetLabel: text("target_label"),
   lastAnalyzedAt: timestamp("last_analyzed_at", { withTimezone: true }),
   nextAnalysisAt: timestamp("next_analysis_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -30,6 +35,7 @@ export const scans = pgTable("scans", {
   deviceId: text("device_id")
     .notNull()
     .references(() => devices.id, { onDelete: "cascade" }),
+  subjectVisible: boolean("subject_visible").notNull().default(true),
   emptyDetected: boolean("empty_detected").notNull(),
   confidence: doublePrecision("confidence").notNull(),
   description: text("description").notNull(),

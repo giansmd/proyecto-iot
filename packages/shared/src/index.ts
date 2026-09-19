@@ -15,6 +15,48 @@ export const analysisIntervalMinutesSchema = z
   .min(MIN_ANALYSIS_INTERVAL_MINUTES)
   .max(MAX_ANALYSIS_INTERVAL_MINUTES);
 
+/**
+ * Intervalos (en segundos) de captura/envio de imagenes del ESP32.
+ * El backend los devuelve en la respuesta de ingesta para que el dispositivo
+ * ajuste su ritmo sin reprogramarse.
+ */
+export const CAPTURE_INTERVAL_PRESETS_SECONDS = [5, 30, 60, 300, 600] as const;
+export const DEFAULT_CAPTURE_INTERVAL_SECONDS = 60;
+export const MIN_CAPTURE_INTERVAL_SECONDS = 5;
+export const MAX_CAPTURE_INTERVAL_SECONDS = 86400;
+
+export const captureIntervalSecondsSchema = z
+  .number()
+  .int()
+  .min(MIN_CAPTURE_INTERVAL_SECONDS)
+  .max(MAX_CAPTURE_INTERVAL_SECONDS);
+
+/** Tipo de espacio que el modelo debe analizar en la imagen. */
+export const TARGET_TYPES = [
+  "anaquel",
+  "escritorio",
+  "refrigerador",
+  "otro",
+] as const;
+export const targetTypeSchema = z.enum(TARGET_TYPES);
+export type TargetType = z.infer<typeof targetTypeSchema>;
+export const DEFAULT_TARGET_TYPE: TargetType = "anaquel";
+
+export function targetDescription(type: TargetType, label?: string | null): string {
+  const trimmed = label?.trim();
+  if (trimmed) return trimmed;
+  switch (type) {
+    case "anaquel":
+      return "anaquel o góndola de tienda";
+    case "escritorio":
+      return "escritorio de trabajo";
+    case "refrigerador":
+      return "refrigerador o exhibidor refrigerado";
+    default:
+      return "espacio vigilado";
+  }
+}
+
 /** Salida estructurada que debe devolver el modelo de vision. */
 export const emptyAreaSchema = z.object({
   level: z.string().max(120),
@@ -23,6 +65,7 @@ export const emptyAreaSchema = z.object({
 });
 
 export const visionResultSchema = z.object({
+  subjectVisible: z.boolean().default(true),
   emptyDetected: z.boolean(),
   confidence: z.number().min(0).max(1),
   description: z.string().max(1000),
@@ -41,6 +84,9 @@ export interface DeviceDTO {
   location: string | null;
   active: boolean;
   analysisIntervalMinutes: number;
+  captureIntervalSeconds: number;
+  targetType: TargetType;
+  targetLabel: string | null;
   lastAnalyzedAt: string | null;
   nextAnalysisAt: string | null;
   createdAt: string;
@@ -50,6 +96,7 @@ export interface DeviceDTO {
 export interface ScanDTO {
   id: number;
   deviceId: string;
+  subjectVisible: boolean;
   emptyDetected: boolean;
   confidence: number;
   description: string;
@@ -80,7 +127,10 @@ export interface UsageDTO {
 }
 
 export const updateDeviceSettingsSchema = z.object({
-  analysisIntervalMinutes: analysisIntervalMinutesSchema,
+  analysisIntervalMinutes: analysisIntervalMinutesSchema.optional(),
+  captureIntervalSeconds: captureIntervalSecondsSchema.optional(),
+  targetType: targetTypeSchema.optional(),
+  targetLabel: z.string().max(200).nullable().optional(),
   location: z.string().max(200).nullable().optional(),
   name: z.string().max(120).optional(),
   active: z.boolean().optional(),
@@ -110,4 +160,6 @@ export type WsEvent =
 export interface IngestResponse {
   accepted: boolean;
   reason?: string;
+  /** Ritmo de captura que el ESP32 debe aplicar en su próximo ciclo. */
+  captureIntervalSeconds?: number;
 }

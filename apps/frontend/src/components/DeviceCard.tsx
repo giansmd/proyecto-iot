@@ -1,9 +1,14 @@
 import {
   ANALYSIS_INTERVAL_PRESETS,
+  CAPTURE_INTERVAL_PRESETS_SECONDS,
   MAX_ANALYSIS_INTERVAL_MINUTES,
+  MAX_CAPTURE_INTERVAL_SECONDS,
   MIN_ANALYSIS_INTERVAL_MINUTES,
+  MIN_CAPTURE_INTERVAL_SECONDS,
+  TARGET_TYPES,
   type DeviceDTO,
   type ScanDTO,
+  type TargetType,
 } from "@iot/shared";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
@@ -11,17 +16,28 @@ import { formatRelative } from "../lib/format";
 
 const FRAME_REFRESH_MS = 5000;
 
+function formatSeconds(seconds: number): string {
+  if (seconds < 60) return `${seconds} s`;
+  const minutes = seconds / 60;
+  return Number.isInteger(minutes) ? `${minutes} min` : `${seconds} s`;
+}
+
 interface DeviceCardProps {
   device: DeviceDTO;
   scan: ScanDTO | null | undefined;
   busy: boolean;
   onIntervalChange: (minutes: number) => void;
+  onCaptureIntervalChange: (seconds: number) => void;
+  onTargetChange: (targetType: TargetType, targetLabel: string | null) => void;
   onAnalyzeNow: () => void;
 }
 
 function statusOf(device: DeviceDTO, scan: ScanDTO | null | undefined) {
   if (!device.online) {
     return { label: "Sin señal", tone: "bg-slate-600 text-slate-100" };
+  }
+  if (scan && !scan.subjectVisible) {
+    return { label: "Sin espacio", tone: "bg-violet-500 text-white" };
   }
   if (scan?.emptyDetected) {
     return { label: "Vacío", tone: "bg-red-500 text-white" };
@@ -37,18 +53,28 @@ export function DeviceCard({
   scan,
   busy,
   onIntervalChange,
+  onCaptureIntervalChange,
+  onTargetChange,
   onAnalyzeNow,
 }: DeviceCardProps) {
   const [custom, setCustom] = useState(false);
   const [customValue, setCustomValue] = useState(
     String(device.analysisIntervalMinutes),
   );
+  const [customCapture, setCustomCapture] = useState(false);
+  const [customCaptureValue, setCustomCaptureValue] = useState(
+    String(device.captureIntervalSeconds),
+  );
+  const [targetLabel, setTargetLabel] = useState(device.targetLabel ?? "");
   const [frameVersion, setFrameVersion] = useState(() => Date.now());
   const [frameError, setFrameError] = useState(false);
   const status = statusOf(device, scan);
   const isPreset = (ANALYSIS_INTERVAL_PRESETS as readonly number[]).includes(
     device.analysisIntervalMinutes,
   );
+  const isCapturePreset = (
+    CAPTURE_INTERVAL_PRESETS_SECONDS as readonly number[]
+  ).includes(device.captureIntervalSeconds);
 
   useEffect(() => {
     const timer = window.setInterval(
@@ -67,6 +93,26 @@ export function DeviceCard({
     ) {
       onIntervalChange(value);
       setCustom(false);
+    }
+  };
+
+  const applyCustomCapture = () => {
+    const value = Number(customCaptureValue);
+    if (
+      Number.isInteger(value) &&
+      value >= MIN_CAPTURE_INTERVAL_SECONDS &&
+      value <= MAX_CAPTURE_INTERVAL_SECONDS
+    ) {
+      onCaptureIntervalChange(value);
+      setCustomCapture(false);
+    }
+  };
+
+  const applyTargetLabel = () => {
+    const next = targetLabel.trim();
+    const normalized = next.length > 0 ? next : null;
+    if (normalized !== (device.targetLabel ?? null)) {
+      onTargetChange(device.targetType, normalized);
     }
   };
 
@@ -120,6 +166,14 @@ export function DeviceCard({
           <dt className="text-slate-500">Estado equipo</dt>
           <dd>{device.online ? "En línea" : "Desconectado"}</dd>
         </div>
+        <div>
+          <dt className="text-slate-500">Espacio visto</dt>
+          <dd>{scan ? (scan.subjectVisible ? "Sí" : "No") : "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Analiza</dt>
+          <dd>{device.targetLabel?.trim() || device.targetType}</dd>
+        </div>
       </dl>
 
       {scan?.description ? (
@@ -139,6 +193,57 @@ export function DeviceCard({
       ) : null}
 
       <footer className="mt-auto flex flex-col gap-2 border-t border-slate-800 pt-3">
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-400">Capturar cada</label>
+          <select
+            className="rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100"
+            value={
+              customCapture ? "custom" : String(device.captureIntervalSeconds)
+            }
+            onChange={(event) => {
+              if (event.target.value === "custom") {
+                setCustomCapture(true);
+                return;
+              }
+              setCustomCapture(false);
+              onCaptureIntervalChange(Number(event.target.value));
+            }}
+          >
+            {CAPTURE_INTERVAL_PRESETS_SECONDS.map((seconds) => (
+              <option key={seconds} value={seconds}>
+                {formatSeconds(seconds)}
+              </option>
+            ))}
+            <option value="custom">Personalizado…</option>
+          </select>
+          {!isCapturePreset && !customCapture ? (
+            <span className="text-xs text-slate-400">
+              {formatSeconds(device.captureIntervalSeconds)}
+            </span>
+          ) : null}
+        </div>
+
+        {customCapture ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={MIN_CAPTURE_INTERVAL_SECONDS}
+              max={MAX_CAPTURE_INTERVAL_SECONDS}
+              value={customCaptureValue}
+              onChange={(event) => setCustomCaptureValue(event.target.value)}
+              className="w-24 rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100"
+            />
+            <span className="text-xs text-slate-400">segundos</span>
+            <button
+              type="button"
+              onClick={applyCustomCapture}
+              className="rounded-md bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
+            >
+              Aplicar
+            </button>
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-400">Analizar cada</label>
           <select
@@ -187,6 +292,37 @@ export function DeviceCard({
             </button>
           </div>
         ) : null}
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-400">Espacio</label>
+          <select
+            className="rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100"
+            value={device.targetType}
+            onChange={(event) =>
+              onTargetChange(
+                event.target.value as TargetType,
+                device.targetLabel,
+              )
+            }
+          >
+            {TARGET_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={targetLabel}
+            placeholder="descripción (opcional)"
+            onChange={(event) => setTargetLabel(event.target.value)}
+            onBlur={applyTargetLabel}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") applyTargetLabel();
+            }}
+            className="min-w-0 flex-1 rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100"
+          />
+        </div>
 
         <button
           type="button"

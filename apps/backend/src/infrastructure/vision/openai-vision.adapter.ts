@@ -1,20 +1,31 @@
-import { visionResultSchema } from "@iot/shared";
+import { targetDescription, visionResultSchema } from "@iot/shared";
 import OpenAI from "openai";
-import type { VisionAnalyzer, VisionUsage } from "../../domain/ports.js";
+import type {
+  VisionAnalyzer,
+  VisionTarget,
+  VisionUsage,
+} from "../../domain/ports.js";
 
-const SYSTEM_PROMPT = [
-  "Eres un auditor de anaqueles de tienda (retail) que analiza fotografias.",
-  "Debes determinar si en el anaquel hay espacios vacios o góndolas sin producto",
-  "que requieran reposicion (productos faltantes, huecos, frente vacío).",
-  "Responde SIEMPRE en JSON valido, sin texto adicional, con este esquema:",
-  '{"emptyDetected": boolean, "confidence": number (0..1), "description": string,',
-  '"emptyAreas": [{"level": string, "detail": string, "severity": "low"|"medium"|"high"}]}',
-  "Usa confidence para indicar tu certeza. Si no hay huecos, emptyDetected=false y emptyAreas=[].",
-  "Se conservador: marca vacio solo cuando sea evidente que falta producto.",
-].join(" ");
+function buildSystemPrompt(target: VisionTarget): string {
+  const subject = targetDescription(target.targetType, target.targetLabel);
+  return [
+    `Eres un auditor que analiza fotografias de un ${subject}.`,
+    `Primero determina si el ${subject} aparece en la imagen (campo "subjectVisible").`,
+    'Si no aparece, responde subjectVisible=false, emptyDetected=false y emptyAreas=[].',
+    "Si si aparece, determina si hay espacios vacios o faltantes que requieran reposicion",
+    "(productos faltantes, huecos, frente vacio, zona despejada).",
+    "Responde SIEMPRE en JSON valido, sin texto adicional, con este esquema:",
+    '{"subjectVisible": boolean, "emptyDetected": boolean, "confidence": number (0..1),',
+    '"description": string, "emptyAreas": [{"level": string, "detail": string, "severity": "low"|"medium"|"high"}]}',
+    "Usa confidence para indicar tu certeza. Si no hay huecos, emptyDetected=false y emptyAreas=[].",
+    "Se conservador: marca vacio solo cuando sea evidente que falta producto.",
+  ].join(" ");
+}
 
-const USER_PROMPT =
-  "Analiza esta imagen del anaquel e indica si hay espacios vacios que necesiten reposicion.";
+function buildUserPrompt(target: VisionTarget): string {
+  const subject = targetDescription(target.targetType, target.targetLabel);
+  return `Analiza esta imagen del ${subject} e indica si aparece y si hay espacios vacios que necesiten reposicion.`;
+}
 
 export interface OpenAIVisionOptions {
   apiKey: string;
@@ -42,6 +53,7 @@ export class OpenAIVisionAdapter implements VisionAnalyzer {
 
   async analyze(input: {
     image: Buffer;
+    target: VisionTarget;
   }): Promise<{ result: ReturnType<typeof visionResultSchema.parse>; usage: VisionUsage }> {
     const dataUrl = `data:image/jpeg;base64,${input.image.toString("base64")}`;
 
@@ -50,11 +62,11 @@ export class OpenAIVisionAdapter implements VisionAnalyzer {
       response_format: { type: "json_object" },
       max_tokens: this.maxOutputTokens,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: buildSystemPrompt(input.target) },
         {
           role: "user",
           content: [
-            { type: "text", text: USER_PROMPT },
+            { type: "text", text: buildUserPrompt(input.target) },
             {
               type: "image_url",
               image_url: { url: dataUrl, detail: this.detail },
@@ -84,6 +96,7 @@ export class NoopVisionAdapter implements VisionAnalyzer {
   }> {
     return {
       result: {
+        subjectVisible: true,
         emptyDetected: false,
         confidence: 0,
         description: "Analizador deshabilitado (sin OPENAI_API_KEY).",

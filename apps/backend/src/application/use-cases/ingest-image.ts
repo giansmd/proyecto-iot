@@ -6,6 +6,7 @@ export interface IngestImageDeps {
   devices: DeviceRepository;
   frames: FrameStore;
   defaultIntervalMinutes: number;
+  defaultCaptureIntervalSeconds: number;
 }
 
 export class IngestImageUseCase {
@@ -20,14 +21,18 @@ export class IngestImageUseCase {
     }
 
     const now = new Date();
-    await this.deps.devices.ensureDevice(input.deviceId, {
+    const device = await this.deps.devices.ensureDevice(input.deviceId, {
       name: input.deviceId,
       analysisIntervalMinutes: this.deps.defaultIntervalMinutes,
+      captureIntervalSeconds: this.deps.defaultCaptureIntervalSeconds,
       // El primer analisis ocurre recien al cumplirse el intervalo.
       nextAnalysisAt: computeNextAnalysis(now, this.deps.defaultIntervalMinutes),
     });
 
     await this.deps.frames.save(input.deviceId, input.image, now);
-    return { accepted: true };
+    return {
+      accepted: true,
+      captureIntervalSeconds: device.captureIntervalSeconds,
+    };
   }
 }

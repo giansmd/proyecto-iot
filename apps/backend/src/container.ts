@@ -79,6 +79,7 @@ export async function createContainer(): Promise<Container> {
     devices,
     frames,
     defaultIntervalMinutes: config.DEFAULT_ANALYSIS_INTERVAL_MINUTES,
+    defaultCaptureIntervalSeconds: config.DEFAULT_CAPTURE_INTERVAL_SECONDS,
   });
 
   const analyze = new AnalyzeDeviceUseCase({

@@ -8,6 +8,13 @@
       "when": 1789836363329,
       "tag": "0000_cooing_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789839459538,
+      "tag": "0001_sour_eddie_brock",
+      "breakpoints": true
     }
   ]
 }

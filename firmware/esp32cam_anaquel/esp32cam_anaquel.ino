@@ -22,8 +22,10 @@ const char *SERVER_URL = "http://MI_DOMINIO_O_IP:5000/analizar-anaquel";
 // Debe coincidir con una entrada `id:clave` de DEVICE_KEYS en el backend.
 const char *DEVICE_KEY = "cambia-esta-clave";
 
-// Frecuencia de captura/envio (la ingesta es barata; el backend analiza aparte).
-const unsigned long SEND_INTERVAL_MS = 60000UL; // 1 minuto
+// Frecuencia de captura/envio por defecto. El backend puede ajustarla desde el
+// dashboard: viaja en la respuesta del POST (campo captureIntervalSeconds).
+const unsigned long DEFAULT_SEND_INTERVAL_MS = 60000UL; // 1 minuto
+const unsigned long MIN_SEND_INTERVAL_MS = 5000UL;      // 5 segundos
 // ===================================================
 
 // ===== Pines AI-Thinker ESP32-CAM =====
@@ -45,6 +47,7 @@ const unsigned long SEND_INTERVAL_MS = 60000UL; // 1 minuto
 #define PCLK_GPIO_NUM 22
 
 unsigned long previousMillis = 0;
+unsigned long sendIntervalMs = DEFAULT_SEND_INTERVAL_MS;
 
 bool initCamera() {
   camera_config_t config;
@@ -109,6 +112,13 @@ void connectWiFi() {
   Serial.printf("\nWiFi conectado. IP: %s\n", WiFi.localIP().toString().c_str());
 }
 
+long parseCaptureIntervalSeconds(const String &body) {
+  const char *key = "\"captureIntervalSeconds\":";
+  const int idx = body.indexOf(key);
+  if (idx < 0) return -1;
+  return body.substring(idx + strlen(key)).toInt();
+}
+
 void sendFrameToServer() {
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) {
@@ -124,7 +134,19 @@ void sendFrameToServer() {
 
   int code = http.POST(fb->buf, fb->len);
   if (code > 0) {
-    Serial.printf("Frame enviado. HTTP %d\n", code);
+    String body = http.getString();
+    Serial.printf("Frame enviado. HTTP %d %s\n", code, body.c_str());
+    if (code == 202) {
+      long seconds = parseCaptureIntervalSeconds(body);
+      if (seconds > 0) {
+        unsigned long ms = (unsigned long)seconds * 1000UL;
+        if (ms < MIN_SEND_INTERVAL_MS) ms = MIN_SEND_INTERVAL_MS;
+        if (ms != sendIntervalMs) {
+          sendIntervalMs = ms;
+          Serial.printf("Nuevo intervalo de captura: %ld s\n", seconds);
+        }
+      }
+    }
   } else {
     Serial.printf("Fallo HTTP: %s\n", http.errorToString(code).c_str());
   }
@@ -149,7 +171,7 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= SEND_INTERVAL_MS) {
+  if (currentMillis - previousMillis >= sendIntervalMs) {
     previousMillis = currentMillis;
     if (WiFi.status() == WL_CONNECTED) {
       sendFrameToServer();

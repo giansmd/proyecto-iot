@@ -8,6 +8,9 @@ export function toDeviceDTO(device: Device, online: boolean): DeviceDTO {
     location: device.location,
     active: device.active,
     analysisIntervalMinutes: device.analysisIntervalMinutes,
+    captureIntervalSeconds: device.captureIntervalSeconds,
+    targetType: device.targetType,
+    targetLabel: device.targetLabel,
     lastAnalyzedAt: device.lastAnalyzedAt?.toISOString() ?? null,
     nextAnalysisAt: device.nextAnalysisAt?.toISOString() ?? null,
     createdAt: device.createdAt.toISOString(),
@@ -19,6 +22,7 @@ export function toScanDTO(scan: Scan): ScanDTO {
   return {
     id: scan.id,
     deviceId: scan.deviceId,
+    subjectVisible: scan.subjectVisible,
     emptyDetected: scan.emptyDetected,
     confidence: scan.confidence,
     description: scan.description,

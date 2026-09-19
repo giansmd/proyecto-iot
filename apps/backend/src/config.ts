@@ -28,6 +28,11 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(30),
+  DEFAULT_CAPTURE_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60),
   FRAME_STALE_FACTOR: z.coerce.number().positive().default(2),
 
   MAX_UPLOAD_BYTES: z.coerce

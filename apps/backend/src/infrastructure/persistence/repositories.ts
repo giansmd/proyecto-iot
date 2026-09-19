@@ -40,6 +40,7 @@ export class DrizzleDeviceRepository implements DeviceRepository {
     defaults: {
       name: string;
       analysisIntervalMinutes: number;
+      captureIntervalSeconds: number;
       nextAnalysisAt: Date;
     },
   ): Promise<Device> {
@@ -49,6 +50,7 @@ export class DrizzleDeviceRepository implements DeviceRepository {
         id,
         name: defaults.name,
         analysisIntervalMinutes: defaults.analysisIntervalMinutes,
+        captureIntervalSeconds: defaults.captureIntervalSeconds,
         nextAnalysisAt: defaults.nextAnalysisAt,
       })
       .onConflictDoNothing({ target: devices.id });
@@ -79,6 +81,9 @@ export class DrizzleDeviceRepository implements DeviceRepository {
         | "location"
         | "active"
         | "analysisIntervalMinutes"
+        | "captureIntervalSeconds"
+        | "targetType"
+        | "targetLabel"
         | "lastAnalyzedAt"
         | "nextAnalysisAt"
       >
@@ -101,6 +106,7 @@ export class DrizzleScanRepository implements ScanRepository {
       .insert(scans)
       .values({
         deviceId: input.deviceId,
+        subjectVisible: input.subjectVisible,
         emptyDetected: input.emptyDetected,
         confidence: input.confidence,
         description: input.description,

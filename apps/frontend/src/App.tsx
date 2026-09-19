@@ -2,6 +2,7 @@ import type {
   AlertDTO,
   DeviceDTO,
   ScanDTO,
+  TargetType,
   UsageDTO,
   WsEvent,
 } from "@iot/shared";
@@ -133,6 +134,41 @@ export default function App() {
     }
   };
 
+  const handleCaptureInterval = async (deviceId: string, seconds: number) => {
+    try {
+      const updated = await api.updateSettings(deviceId, {
+        captureIntervalSeconds: seconds,
+      });
+      setDevices((current) =>
+        current.map((device) => (device.id === deviceId ? updated : device)),
+      );
+      const label =
+        seconds < 60 ? `${seconds} s` : `${Math.round(seconds / 60)} min`;
+      pushToast("success", `Captura actualizada a ${label}.`);
+    } catch (error) {
+      pushToast("error", `No se pudo actualizar: ${String(error)}`);
+    }
+  };
+
+  const handleTarget = async (
+    deviceId: string,
+    targetType: TargetType,
+    targetLabel: string | null,
+  ) => {
+    try {
+      const updated = await api.updateSettings(deviceId, {
+        targetType,
+        targetLabel,
+      });
+      setDevices((current) =>
+        current.map((device) => (device.id === deviceId ? updated : device)),
+      );
+      pushToast("success", "Espacio a analizar actualizado.");
+    } catch (error) {
+      pushToast("error", `No se pudo actualizar: ${String(error)}`);
+    }
+  };
+
   const handleAnalyzeNow = async (deviceId: string) => {
     setBusyDevice(deviceId);
     try {
@@ -192,6 +228,12 @@ export default function App() {
                 busy={busyDevice === device.id}
                 onIntervalChange={(minutes) =>
                   void handleInterval(device.id, minutes)
+                }
+                onCaptureIntervalChange={(seconds) =>
+                  void handleCaptureInterval(device.id, seconds)
+                }
+                onTargetChange={(targetType, targetLabel) =>
+                  void handleTarget(device.id, targetType, targetLabel)
                 }
                 onAnalyzeNow={() => void handleAnalyzeNow(device.id)}
               />

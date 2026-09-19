@@ -1,4 +1,9 @@
-import type { VisionResult, WsEvent, AlertStatus } from "@iot/shared";
+import type {
+  AlertStatus,
+  TargetType,
+  VisionResult,
+  WsEvent,
+} from "@iot/shared";
 import type {
   Alert,
   Device,
@@ -8,6 +13,7 @@ import type {
 
 export interface NewScan {
   deviceId: string;
+  subjectVisible: boolean;
   emptyDetected: boolean;
   confidence: number;
   description: string;
@@ -42,6 +48,7 @@ export interface DeviceRepository {
     defaults: {
       name: string;
       analysisIntervalMinutes: number;
+      captureIntervalSeconds: number;
       nextAnalysisAt: Date;
     },
   ): Promise<Device>;
@@ -55,6 +62,9 @@ export interface DeviceRepository {
         | "location"
         | "active"
         | "analysisIntervalMinutes"
+        | "captureIntervalSeconds"
+        | "targetType"
+        | "targetLabel"
         | "lastAnalyzedAt"
         | "nextAnalysisAt"
       >
@@ -100,10 +110,16 @@ export interface VisionUsage {
   completionTokens: number;
 }
 
+export interface VisionTarget {
+  targetType: TargetType;
+  targetLabel: string | null;
+}
+
 export interface VisionAnalyzer {
   readonly model: string;
   analyze(input: {
     image: Buffer;
+    target: VisionTarget;
   }): Promise<{ result: VisionResult; usage: VisionUsage }>;
 }
 

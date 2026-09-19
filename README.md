@@ -5,9 +5,14 @@ envía un **ESP32-CAM**. El backend recibe las capturas, decide **cuándo**
 analizarlas con **IA (OpenAI Vision)** y notifica en **tiempo real** a un
 dashboard web cuando falta producto.
 
-- **Ingesta ESP32:** 1 imagen por minuto (`POST image/jpeg`).
+- **Ingesta ESP32:** frecuencia configurable desde el dashboard (5 s, 30 s,
+  1 min, 5 min, 10 min o personalizada). Por defecto **1 min**. El backend
+  devuelve el intervalo vigente en la respuesta del `POST` y el ESP32 lo aplica.
 - **Análisis IA:** cada intervalo configurable por dispositivo (1 min, 5 min,
   30 min, 1 h, 2 h o personalizado). Por defecto **30 min**.
+- **Espacio analizado:** por dispositivo se elige el tipo (anaquel, escritorio,
+  refrigerador, otro) y una descripción libre; el prompt de la IA se adapta.
+  El modelo además indica si ese espacio aparece en la imagen (`subjectVisible`).
 - **Notificación:** solo cuando se detecta vacío, en vivo por WebSocket.
 - **Costo controlado:** solo se analiza el último frame, se omiten frames
   idénticos y hay un **guardián de presupuesto** (por defecto **$1 USD**).
@@ -130,10 +135,12 @@ El firmware (`firmware/esp32cam_anaquel/esp32cam_anaquel.ino`) envía:
 | URL | `http://<host>:5000/analizar-anaquel` |
 | Content-Type | `image/jpeg` (cuerpo binario crudo) |
 | Header auth | `X-Device-Key: <clave>` |
-| Periodicidad | 1 minuto (`SEND_INTERVAL_MS = 60000`) |
+| Periodicidad | Configurable desde el dashboard (`captureIntervalSeconds`) |
 
 El backend responde `202 Accepted` inmediatamente (< 1 s) y encola el frame.
-Ajusta en el sketch `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` y `DEVICE_KEY`.
+Esa respuesta incluye `captureIntervalSeconds`; el ESP32 ajusta su ritmo de
+captura en el siguiente ciclo (mínimo 5 s, por defecto 60 s). Ajusta en el
+sketch `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` y `DEVICE_KEY`.
 
 ## API HTTP
 
@@ -142,7 +149,7 @@ Ajusta en el sketch `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` y `DEVICE_KEY`.
 | `POST` | `/analizar-anaquel` | Ingesta de imagen (auth por `X-Device-Key`) |
 | `GET` | `/health` | Estado del servicio |
 | `GET` | `/api/devices` | Dispositivos y su estado |
-| `PATCH` | `/api/devices/:id/settings` | Cambia intervalo (`analysisIntervalMinutes`) / nombre / ubicación / activo |
+| `PATCH` | `/api/devices/:id/settings` | Cambia intervalo de análisis (`analysisIntervalMinutes`), captura (`captureIntervalSeconds`), espacio (`targetType`/`targetLabel`), nombre / ubicación / activo |
 | `POST` | `/api/devices/:id/analyze-now` | Fuerza un análisis |
 | `GET` | `/api/devices/:id/frame` | Última imagen JPEG recibida (se refresca cada 5 s en el dashboard) |
 | `GET` | `/api/devices/:id/scans?limit=` | Historial de análisis |
@@ -165,7 +172,8 @@ Ver `.env.example` para la lista completa. Las clave:
 | `OPENAI_MODEL` | `gpt-4o-mini` | Modelo de visión |
 | `OPENAI_IMAGE_DETAIL` | `low` | `low`/`high`/`auto` (costo) |
 | `OPENAI_BUDGET_USD` | `1` | Presupuesto máximo acumulado |
-| `DEFAULT_ANALYSIS_INTERVAL_MINUTES` | `30` | Intervalo inicial |
+| `DEFAULT_ANALYSIS_INTERVAL_MINUTES` | `30` | Intervalo de análisis inicial |
+| `DEFAULT_CAPTURE_INTERVAL_SECONDS` | `60` | Ritmo de captura inicial del ESP32 |
 | `FRAME_STALE_FACTOR` | `2` | Un frame es obsoleto si supera `intervalo * factor` |
 
 ## Estructura del repositorio

@@ -1,4 +1,4 @@
-import type { AlertStatus, EmptyArea } from "@iot/shared";
+import type { AlertStatus, EmptyArea, TargetType } from "@iot/shared";
 
 export interface Device {
   id: string;
@@ -6,6 +6,9 @@ export interface Device {
   location: string | null;
   active: boolean;
   analysisIntervalMinutes: number;
+  captureIntervalSeconds: number;
+  targetType: TargetType;
+  targetLabel: string | null;
   lastAnalyzedAt: Date | null;
   nextAnalysisAt: Date | null;
   createdAt: Date;
@@ -14,6 +17,7 @@ export interface Device {
 export interface Scan {
   id: number;
   deviceId: string;
+  subjectVisible: boolean;
   emptyDetected: boolean;
   confidence: number;
   description: string;

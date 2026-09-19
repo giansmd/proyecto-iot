@@ -84,6 +84,10 @@ export class AnalyzeDeviceUseCase {
 
     const { result, usage } = await this.deps.vision.analyze({
       image: frame.data,
+      target: {
+        targetType: device.targetType,
+        targetLabel: device.targetLabel,
+      },
     });
 
     const costUsd =
@@ -101,6 +105,7 @@ export class AnalyzeDeviceUseCase {
 
     const scan = await this.deps.scans.create({
       deviceId,
+      subjectVisible: result.subjectVisible,
       emptyDetected: result.emptyDetected,
       confidence: result.confidence,
       description: result.description,
@@ -115,7 +120,7 @@ export class AnalyzeDeviceUseCase {
       payload: toScanDTO(scan),
     });
 
-    if (result.emptyDetected) {
+    if (result.subjectVisible && result.emptyDetected) {
       const active = await this.deps.alerts.findActiveByDevice(deviceId);
       if (!active) {
         const alert = await this.deps.alerts.create({

@@ -58,6 +58,11 @@ export class UpdateDeviceSettingsUseCase {
     if (patch.name !== undefined) update.name = patch.name;
     if (patch.location !== undefined) update.location = patch.location;
     if (patch.active !== undefined) update.active = patch.active;
+    if (patch.captureIntervalSeconds !== undefined) {
+      update.captureIntervalSeconds = patch.captureIntervalSeconds;
+    }
+    if (patch.targetType !== undefined) update.targetType = patch.targetType;
+    if (patch.targetLabel !== undefined) update.targetLabel = patch.targetLabel;
     if (patch.analysisIntervalMinutes !== undefined) {
       update.analysisIntervalMinutes = patch.analysisIntervalMinutes;
       update.nextAnalysisAt = computeNextAnalysis(
